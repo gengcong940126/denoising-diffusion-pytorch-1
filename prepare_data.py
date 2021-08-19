@@ -63,7 +63,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', type=str)
     parser.add_argument('--size', type=str, default='128,256,512,1024')
-    parser.add_argument('--n_worker', type=int, default=8)
+    parser.add_argument('--n_worker', type=int, default=0)
     parser.add_argument('--resample', type=str, default='lanczos')
     parser.add_argument('path', type=str)
 

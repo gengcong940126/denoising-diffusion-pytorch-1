@@ -129,3 +129,10 @@ dmypy.json
 .pyre/
 
 *.lmdb
+.idea/denoising-diffusion-pytorch-1.iml
+.idea/deployment.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/inspectionProfiles/Project_Default.xml
