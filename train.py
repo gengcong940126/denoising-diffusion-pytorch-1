@@ -83,9 +83,16 @@ def train(conf, results_dir, loader, test_loader,model, ema, diffusion, optimize
                 fid_cache = '/home/congen/code/AGE-exp/datasets/tf_fid_stats_cifar10_32.npz'
                 n_generate = 1000
                 num_split, num_run4PR, num_cluster4PR, beta4PR = 1, 10, 20, 8
-                is_scores, fid_score, precision, recall, f_beta, f_beta_inv = calculate_f_beta_score(diffusion,test_loader,
+                if conf.dataset.name == 'cifar10':
+                    is_scores, fid_score, precision, recall, f_beta, f_beta_inv = \
+                        calculate_f_beta_score(diffusion,test_loader,
                                                                     ema, n_generate, num_run4PR, num_cluster4PR,
                                                                     beta4PR, num_split, fid_cache,device)
+                elif conf.dataset.name == 'animeface':
+                    is_scores, fid_score, precision, recall, f_beta, f_beta_inv = \
+                        calculate_f_beta_score_animeface(diffusion, test_loader,
+                                               ema, n_generate, num_run4PR, num_cluster4PR,
+                                               beta4PR, num_split, device)
                 wandb.define_metric("FID", summary="min")
                 wandb.define_metric("IS", summary="max")
                 wandb.define_metric("F8", summary="max")
@@ -133,26 +140,30 @@ def train(conf, results_dir, loader, test_loader,model, ema, diffusion, optimize
 
 def main(conf):
     wandb = None
+    a=int(time.time())
     if dist.is_primary() and conf.evaluate.wandb:
         wandb = load_wandb()
-        wandb.init(project="denoising diffusion2")
+        wandb.init(project="denoising diffusion {}".format(a))
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     beta_schedule = "linear"
-    results_folder = './results_{}/{}'.format(conf.dataset.name, int(time.time()))
+    results_folder = './results_{}/{}'.format(conf.dataset.name, a)
     results_folder = Path(results_folder)
     results_folder.mkdir(parents=True,exist_ok=True)
     conf.distributed = dist.get_world_size() > 1
 
     transform = transforms.Compose(
-        [   transforms.Resize(conf.dataset.resolution),
+        [
+            transforms.Resize(conf.dataset.resolution),
             transforms.RandomHorizontalFlip(),
+            transforms.CenterCrop(conf.dataset.resolution),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
         ]
     )
     test_transform = transforms.Compose(
         [transforms.Resize(conf.dataset.resolution),
+         transforms.CenterCrop(conf.dataset.resolution),
          transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
          ]
@@ -170,7 +181,7 @@ def main(conf):
         test_set, shuffle=False, distributed=conf.distributed
     )
     train_loader = conf.training.dataloader.make(train_set, sampler=train_sampler)
-    test_loader = data.DataLoader(test_set, sampler=test_sampler,batch_size=conf.training.dataloader.batch_size,
+    test_loader = data.DataLoader(test_set, sampler=test_sampler,batch_size=100,
                                   shuffle=False, pin_memory=True,drop_last=False)
 
     model = conf.model.make()
@@ -257,18 +268,18 @@ def test(conf):
 """
     Usage:
 
-        export CUDA_VISIBLE_DEVICES=1
+        export CUDA_VISIBLE_DEVICES=0
         export PORT=6006
         export CUDA_HOME=/opt/cuda/cuda-10.2
         export TIME_STR=1
-        python train.py --conf ./config/diffusion_cifar10.conf
+        python train.py --conf ./config/diffusion_animeface.conf
 
 
     :return:
     """
 if __name__ == "__main__":
     if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+        os.environ['CUDA_VISIBLE_DEVICES'] = '5'
     conf = load_arg_config(DiffusionConfig)
 
     dist.launch(

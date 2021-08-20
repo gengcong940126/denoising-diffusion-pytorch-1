@@ -179,7 +179,7 @@ class precision_recall(object):
         f.close()
         fid_score = calculate_frechet_distance(m1, s1, m2, s2)
         return is_scores, fid_score, mean_precision, mean_recall
-    def compute_fid_pr_animeface(self, dataloader, gen, num_generate, num_runs, num_clusters,
+    def compute_fid_pr_animeface(self, diffusion,dataloader, gen, num_generate, num_runs, num_clusters,
                                  batch_size, splits,num_angles=1001):
         dataset_iter = iter(dataloader)
         ys = []
@@ -191,7 +191,7 @@ class precision_recall(object):
             start = i * batch_size
             end = start + batch_size
             real_images = next(dataset_iter).cuda()
-            fake_images = gen.sample(batch_size=batch_size)
+            fake_images = diffusion.p_sample_loop(gen, real_images.shape, 'cuda')
 
             real_embed = self.inception_softmax(real_images).detach().cpu().numpy()
             fake_embed = self.inception_softmax(fake_images).detach().cpu().numpy()
@@ -262,15 +262,15 @@ def calculate_f_beta_score(diffusion,dataloader, gen, num_generate, num_runs, nu
     f_beta = np.max(PR.compute_f_beta(precision, recall, beta=beta))
     f_beta_inv = np.max(PR.compute_f_beta(precision, recall, beta=1/beta))
     return is_scores,fid_score, precision, recall, f_beta, f_beta_inv
-def calculate_f_beta_score_animeface(dataloader, gen, num_generate, num_runs, num_clusters, beta,splits):
+def calculate_f_beta_score_animeface(diffusion,dataloader, gen, num_generate, num_runs, num_clusters, beta,splits,device):
     inception_model = InceptionV3().cuda()
     inception_model.eval()
 
     batch_size = dataloader.batch_size
-    PR = precision_recall(inception_model, device='gpu')
+    PR = precision_recall(inception_model, device=device)
     # precision, recall = PR.compute_precision_recall(dataloader, gen,
     #                                 num_generate, num_runs, num_clusters, batch_size)
-    is_scores,fid_score,precision, recall = PR.compute_fid_pr_animeface(dataloader, gen,
+    is_scores,fid_score,precision, recall = PR.compute_fid_pr_animeface(diffusion,dataloader, gen,
                                     num_generate, num_runs, num_clusters, batch_size,splits)
     if not ((precision >= 0).all() and (precision <= 1).all()):
         raise ValueError('All values in precision must be in [0, 1].')

@@ -1,5 +1,5 @@
 from io import BytesIO
-
+import os
 import lmdb
 from PIL import Image
 from torch.utils.data import Dataset
@@ -13,6 +13,12 @@ class MultiResolutionDataset(Dataset):
             self.reader = CIFAR10(root=path,
                                 train=train,
                                 download=True)
+        elif dataset =='animeface':
+            if train == True:
+                root = os.path.join('/dtu-compute/congen/animeface', 'train')
+            else:
+                root = os.path.join('/dtu-compute/congen/animeface', 'valid')
+            self.reader = ImageFolder(root=root)
         else:
             self.reader = LMDBReader(path, reader="raw")
 
