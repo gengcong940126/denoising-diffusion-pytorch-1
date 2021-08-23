@@ -217,6 +217,7 @@ def test(conf):
 
     test_transform = transforms.Compose(
         [transforms.Resize(conf.dataset.resolution),
+         transforms.CenterCrop(conf.dataset.resolution),
          transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
          ]
@@ -229,9 +230,9 @@ def test(conf):
         test_set, shuffle=False, distributed=conf.distributed
     )
 
-    test_loader = data.DataLoader(test_set, sampler=test_sampler, batch_size=conf.training.dataloader.batch_size,
+    test_loader = data.DataLoader(test_set, sampler=test_sampler, batch_size=200,
                                   shuffle=False, pin_memory=True, drop_last=False)
-    ckpt = torch.load('./results_cifar10/1629313170/diffusion_best.pt')
+    ckpt = torch.load('./results_animeface/1629470395/diffusion_best.pt')
     model = conf.model.make()
     model.load_state_dict(ckpt['ema'])
     model = model.to('cuda')
@@ -251,13 +252,22 @@ def test(conf):
     fid_cache = '/home/congen/code/AGE-exp/datasets/tf_fid_stats_cifar10_32.npz'
     n_generate = len(test_loader.dataset)
     num_split, num_run4PR, num_cluster4PR, beta4PR = 1, 10, 20, 8
-    is_scores, fid_score, precision, recall, f_beta, f_beta_inv = calculate_f_beta_score(diffusion,
+    if conf.dataset.name == 'cifar10':
+        is_scores, fid_score, precision, recall, f_beta, f_beta_inv = calculate_f_beta_score(diffusion,
                                                                                          test_loader,
                                                                                          model, n_generate,
                                                                                          num_run4PR,
                                                                                          num_cluster4PR,
                                                                                          beta4PR, num_split,
                                                                                          fid_cache, device)
+    elif conf.dataset.name == 'animeface':
+        is_scores, fid_score, precision, recall, f_beta, f_beta_inv = calculate_f_beta_score_animeface(diffusion,
+                                                                                             test_loader,
+                                                                                             model, n_generate,
+                                                                                             num_run4PR,
+                                                                                             num_cluster4PR,
+                                                                                             beta4PR, num_split,
+                                                                                              device)
     print('IS', is_scores)
     print('FID', fid_score)
     print('F8', f_beta)
@@ -268,7 +278,7 @@ def test(conf):
 """
     Usage:
 
-        export CUDA_VISIBLE_DEVICES=0
+        export CUDA_VISIBLE_DEVICES=3
         export PORT=6006
         export CUDA_HOME=/opt/cuda/cuda-10.2
         export TIME_STR=1
@@ -279,9 +289,9 @@ def test(conf):
     """
 if __name__ == "__main__":
     if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+        os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     conf = load_arg_config(DiffusionConfig)
 
     dist.launch(
-        main, conf.n_gpu, conf.n_machine, conf.machine_rank, conf.dist_url, args=(conf,)
+        test, conf.n_gpu, conf.n_machine, conf.machine_rank, conf.dist_url, args=(conf,)
     )
